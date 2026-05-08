@@ -9,7 +9,7 @@ const map = L.map('map', {
 
 let geoJsonLayer, crimeaLayer;
 
-// Ссылка на твой Firebase (обязательно с .json в конце)
+// Ссылка на твой Firebase
 const firebaseURL = "https://alertrussiamap-default-rtdb.europe-west1.firebasedatabase.app/alerts.json";
 
 function createPatterns() {
@@ -43,33 +43,41 @@ function getStyle(status, isCrimea = false) {
     return style;
 }
 
+// ГЛАВНАЯ ФУНКЦИЯ ОБНОВЛЕНИЯ
 async function refreshStatuses() {
     try {
-        const res = await fetch(firebaseURL);
+        const res = await fetch(firebaseURL + "?t=" + Date.now());
         const statusData = await res.json();
         if (!statusData) return;
 
+        // 1. Красим Крым
         if (statusData.Crimea && crimeaLayer) {
             crimeaLayer.setStyle(getStyle(statusData.Crimea, true));
         }
 
+        // 2. Проходим по всем регионам РФ
         if (geoJsonLayer) {
             geoJsonLayer.eachLayer(l => {
-                const name = l.feature.properties.name;
+                const featureName = l.feature.properties.name || "";
+                
+                // Ищем совпадение ключа из Firebase с именем региона на карте
                 for (let key in statusData) {
-                    if (name.toLowerCase().includes(key.toLowerCase())) {
+                    if (featureName.toLowerCase().includes(key.toLowerCase())) {
                         l.setStyle(getStyle(statusData[key]));
                     }
                 }
             });
         }
-    } catch (e) { console.error("Firebase Error:", e); }
+    } catch (e) { 
+        console.error("Firebase Error:", e); 
+    }
 }
 
 async function init() {
     loadBackgroundMask();
     createPatterns();
     
+    // Загружаем карту регионов РФ
     const geoData = await fetch("https://raw.githubusercontent.com/codeforgermany/click_that_hood/main/public/data/russia.geojson").then(r => r.json());
 
     geoJsonLayer = L.geoJSON(geoData, {
@@ -79,13 +87,14 @@ async function init() {
         }
     }).addTo(map);
 
+    // Рисуем Крым отдельно
     const crimeaCoords = [[46.166, 33.682], [46.183, 33.729], [46.136, 33.791], [46.069, 33.821], [46.052, 33.914], [46.101, 34.116], [46.101, 34.254], [46.052, 34.341], [45.981, 34.502], [45.922, 34.694], [45.908, 34.793], [45.782, 34.821], [45.698, 34.884], [45.578, 34.919], [45.501, 35.004], [45.495, 35.158], [45.482, 35.341], [45.394, 35.495], [45.334, 35.612], [45.352, 35.794], [45.452, 35.941], [45.482, 36.102], [45.493, 36.251], [45.474, 36.421], [45.434, 36.635], [45.378, 36.654], [45.302, 36.551], [45.241, 36.471], [45.184, 36.424], [45.105, 36.416], [45.031, 36.384], [45.021, 36.216], [45.032, 36.054], [45.048, 35.836], [45.121, 35.641], [45.074, 35.482], [45.011, 35.385], [44.954, 35.214], [44.891, 35.104], [44.832, 34.962], [44.811, 34.854], [44.782, 34.721], [44.714, 34.541], [44.697, 34.411], [44.642, 34.341], [44.582, 34.302], [44.492, 34.184], [44.441, 34.141], [44.406, 34.058], [44.394, 33.914], [44.386, 33.729], [44.404, 33.641], [44.453, 33.522], [44.484, 33.484], [44.552, 33.454], [44.591, 33.421], [44.641, 33.484], [44.704, 33.521], [44.756, 33.551], [44.852, 33.594], [44.952, 33.594], [45.045, 33.521], [45.121, 33.441], [45.195, 33.284], [45.281, 33.214], [45.324, 33.004], [45.334, 32.784], [45.321, 32.501], [45.341, 32.484], [45.414, 32.504], [45.482, 32.614], [45.541, 32.741], [45.592, 32.884], [45.654, 32.954], [45.748, 33.211], [45.852, 33.341], [45.952, 33.484], [46.041, 33.584], [46.155, 33.644], [46.166, 33.682]];
     
     crimeaLayer = L.polygon(crimeaCoords, getStyle("safe", true)).addTo(map);
     crimeaLayer.bindTooltip("Крым", { sticky: true, className: 'leaflet-tooltip-own' });
 
     refreshStatuses();
-    setInterval(refreshStatuses, 10000);
+    setInterval(refreshStatuses, 15000); // Проверка каждые 15 сек
 }
 
 function loadBackgroundMask() {
