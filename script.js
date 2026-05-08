@@ -8,6 +8,8 @@ const map = L.map('map', {
 }).setView([55.75, 37.61], 5);
 
 let geoJsonLayer, crimeaLayer;
+
+// ВАЖНО: Ссылка с твоим регионом базы данных
 const firebaseURL = "https://alertrussiamap-default-rtdb.europe-west1.firebasedatabase.app/alerts.json";
 
 function createPatterns() {
@@ -33,8 +35,6 @@ function getStyle(status, isCrimea = false) {
     let style = { fillColor: "#343a40", weight: 1.2, opacity: 1, color: '#111', fillOpacity: 1 };
     if (status === "danger") {
         style.fillColor = isCrimea ? "url(#stripeRed)" : "#b91c1c";
-    } else if (status === "warning") {
-        style.fillColor = "#d97706";
     } else {
         style.fillColor = isCrimea ? "url(#stripeWhite)" : "#4b5563";
     }
@@ -47,16 +47,13 @@ async function refreshStatuses() {
         const statusData = await res.json();
         if (!statusData) return;
 
-        // 1. Крым
         if (statusData.Crimea && crimeaLayer) {
             crimeaLayer.setStyle(getStyle(statusData.Crimea, true));
         }
 
-        // 2. Все регионы
         if (geoJsonLayer) {
             geoJsonLayer.eachLayer(l => {
                 const nameEng = (l.feature.properties.name || "").toLowerCase();
-                // Пробуем найти русское название в свойствах, если оно там есть
                 const nameRu = (l.feature.properties.name_ru || l.feature.properties.russian_name || "").toLowerCase();
                 
                 for (let key in statusData) {
@@ -67,7 +64,7 @@ async function refreshStatuses() {
                 }
             });
         }
-    } catch (e) { console.error("Update error:", e); }
+    } catch (e) { console.error("Firebase Error:", e); }
 }
 
 async function init() {
@@ -79,7 +76,6 @@ async function init() {
     geoJsonLayer = L.geoJSON(geoData, {
         style: () => getStyle("safe"),
         onEachFeature: (f, layer) => {
-            // Если есть русское имя в файле - показываем его, если нет - английское
             const displayName = f.properties.name_ru || f.properties.name;
             layer.bindTooltip(displayName, { sticky: true, className: 'leaflet-tooltip-own' });
         }
