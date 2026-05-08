@@ -8,8 +8,6 @@ const map = L.map('map', {
 }).setView([55.75, 37.61], 5);
 
 let geoJsonLayer, crimeaLayer;
-
-// ВАЖНО: Ссылка с твоим регионом базы данных
 const firebaseURL = "https://alertrussiamap-default-rtdb.europe-west1.firebasedatabase.app/alerts.json";
 
 function createPatterns() {
@@ -53,12 +51,13 @@ async function refreshStatuses() {
 
         if (geoJsonLayer) {
             geoJsonLayer.eachLayer(l => {
-                const nameEng = (l.feature.properties.name || "").toLowerCase();
-                const nameRu = (l.feature.properties.name_ru || l.feature.properties.russian_name || "").toLowerCase();
+                const props = l.feature.properties;
+                const allNames = [props.name, props.name_ru, props.russian_name].filter(Boolean).map(n => n.toLowerCase());
                 
                 for (let key in statusData) {
                     const searchKey = key.toLowerCase();
-                    if (nameEng.includes(searchKey) || nameRu.includes(searchKey)) {
+                    const isMatch = allNames.some(name => name.includes(searchKey));
+                    if (isMatch) {
                         l.setStyle(getStyle(statusData[key]));
                     }
                 }
